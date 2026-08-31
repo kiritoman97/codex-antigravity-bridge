@@ -22,6 +22,9 @@ def _build_print_args(
     dangerously_skip_permissions: bool,
 ) -> list[str]:
     args = ["agy"]
+    gemini_dir = os.environ.get("AGY_BRIDGE_GEMINI_DIR", "").strip()
+    if gemini_dir:
+        args.extend(["--gemini_dir", gemini_dir])
     if model and supports_model_flag:
         args.extend(["--model", model])
     if dangerously_skip_permissions:

@@ -35,6 +35,7 @@ def _parse_model_lines(output: str) -> list[str]:
         r"^--help\b",
         r"^\[pty unavailable:",
         r"^(RuntimeError|ImportError|OSError|TimeoutError):",
+        r"^\d+;.*(?:cmd|powershell)\.exe\b",
     ]
     for raw_line in output.splitlines():
         line = raw_line.strip()
@@ -46,6 +47,19 @@ def _parse_model_lines(output: str) -> list[str]:
         line = re.sub(r"^[\u2800-\u28ff]\s*", "", line).strip()
         if not line or any(re.search(pattern, line) for pattern in ignored_patterns):
             continue
+        # agy 1.1.x prints `<slug>\t<display label>`. The public MCP contract
+        # accepts the display label, which agy's --model flag also supports.
+        if "\t" in line:
+            _slug, display_label = line.split("\t", 1)
+            line = display_label.strip()
+        else:
+            model_row = re.match(
+                r"^[a-z0-9][a-z0-9._-]*\s{2,}(.+)$",
+                line,
+                flags=re.IGNORECASE,
+            )
+            if model_row:
+                line = model_row.group(1).strip()
         if len(line) > 120:
             continue
         if line not in seen:
