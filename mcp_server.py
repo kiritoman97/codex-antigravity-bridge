@@ -26,6 +26,7 @@ MODELS_PATH = BRIDGE_DIR / "models.json"
 SETTINGS_PATH = Path.home() / ".gemini" / "antigravity-cli" / "settings.json"
 ENV_WORKSPACE_ROOT = "ANTIGRAVITY_BRIDGE_WORKSPACE_ROOT"
 ENV_TRUSTED_ROOTS = "ANTIGRAVITY_BRIDGE_TRUSTED_ROOTS"
+ENV_INCLUDE_AGY_TRUSTED_ROOTS = "ANTIGRAVITY_BRIDGE_INCLUDE_AGY_TRUSTED_ROOTS"
 DEFAULT_TIMEOUT_SECONDS = 300
 MAX_PROMPT_CHARS = 12000
 PROMPT_WARNING_CHARS = 8000
@@ -76,6 +77,13 @@ def _env_paths(name: str) -> list[Path]:
     return paths
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _default_workspace_root() -> Path:
     configured = _env_paths(ENV_WORKSPACE_ROOT)
     if configured:
@@ -109,12 +117,13 @@ def _path_is_inside(path: Path, root: Path) -> bool:
 def _trusted_roots() -> list[Path]:
     roots = [_default_workspace_root()]
     roots.extend(_env_paths(ENV_TRUSTED_ROOTS))
-    settings = _read_json(SETTINGS_PATH, {})
-    for item in settings.get("trustedWorkspaces", []):
-        try:
-            roots.append(Path(item).expanduser().resolve())
-        except OSError:
-            continue
+    if _env_bool(ENV_INCLUDE_AGY_TRUSTED_ROOTS, True):
+        settings = _read_json(SETTINGS_PATH, {})
+        for item in settings.get("trustedWorkspaces", []):
+            try:
+                roots.append(Path(item).expanduser().resolve())
+            except OSError:
+                continue
     unique: list[Path] = []
     seen: set[str] = set()
     for root in roots:
@@ -604,6 +613,7 @@ def antigravity_current_settings(cwd: str | None = None) -> dict[str, Any]:
         "runs_root": str(runs_root),
         "env_workspace_root": ENV_WORKSPACE_ROOT,
         "env_trusted_roots": ENV_TRUSTED_ROOTS,
+        "include_agy_trusted_roots": _env_bool(ENV_INCLUDE_AGY_TRUSTED_ROOTS, True),
         "max_prompt_chars": MAX_PROMPT_CHARS,
         "max_run_records": MAX_RUN_RECORDS,
         "max_async_job_records": MAX_ASYNC_JOB_RECORDS,
